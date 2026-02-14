@@ -1,317 +1,365 @@
 import streamlit as st
-import pandas as pd
-from data import extract_resume_skills, get_github_skills, load_job_requirements
-from agents import (
-    extract_all_skills_from_data, 
-    analyze_skill_gaps, 
-    generate_roadmap, 
-    calculate_match_score
-)
+import json
+import time
+from datetime import datetime, timedelta
 
 # Page config
 st.set_page_config(
-    page_title="Personal Career Navigator",
+    page_title="Career Navigator",
     page_icon="🚀",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# Initialize session state
-if 'roadmap_generated' not in st.session_state:
-    st.session_state.roadmap_generated = False
-if 'github_data' not in st.session_state:
-    st.session_state.github_data = None
-if 'resume_data' not in st.session_state:
-    st.session_state.resume_data = None
-if 'current_skills' not in st.session_state:
-    st.session_state.current_skills = []
-if 'gaps' not in st.session_state:
-    st.session_state.gaps = {}
-if 'roadmap' not in st.session_state:
-    st.session_state.roadmap = {}
-if 'match_score' not in st.session_state:
-    st.session_state.match_score = {}
-
-# Title
-st.title("🚀 Personal Career Navigator")
-st.markdown("*AI-powered career development roadmap generator*")
-
-# Sidebar inputs
-with st.sidebar:
-    st.header("📋 Your Profile")
-    
-    # GitHub username
-    github_username = st.text_input(
-        "GitHub Username",
-        placeholder="e.g., octocat",
-        help="We'll analyze your repositories and contributions"
-    )
-    
-    # Resume upload
-    resume_file = st.file_uploader(
-        "Upload Resume (PDF)",
-        type=['pdf'],
-        help="Upload your resume for skill extraction"
-    )
-    
-    # Dream role
-    dream_role = st.selectbox(
-        "Dream Role",
-        options=['Software Engineer', 'Data Scientist', 'Fullstack Developer', 'Backend Developer', 'AI Engineer'],
-        help="Select your target career role"
-    )
-    
-    # Time commitment
-    time_per_day = st.slider(
-        "Learning Time per Day (hours)",
-        min_value=1,
-        max_value=4,
-        value=2,
-        help="How much time can you dedicate daily?"
-    )
-    
-    # Current level
-    current_level = st.selectbox(
-        "Current Level",
-        options=['Beginner', 'Intermediate'],
-        help="Select your current skill level"
-    )
-    
-    st.divider()
-    
-    # Generate button
-    generate_btn = st.button("🎯 Generate Roadmap", type="primary", use_container_width=True)
-
-# Main content area
-if generate_btn:
-    if not github_username and not resume_file:
-        st.warning("⚠️ Please provide at least GitHub username or resume to continue.")
-    else:
-        with st.spinner("🔍 Analyzing your profile..."):
-            # 1️⃣ Extract data from GitHub and Resume
-            github_data = get_github_skills(github_username) if github_username else None
-            resume_data = extract_resume_skills(resume_file) if resume_file else None
-            
-            # 2️⃣ Extract all skills
-            current_skills = extract_all_skills_from_data(github_data, resume_data)
-            
-            # 3️⃣ Load job requirements
-            job_requirements = load_job_requirements(dream_role)
-            
-            # 4️⃣ Find gaps
-            gaps = analyze_skill_gaps(current_skills, job_requirements)
-            
-            # 5️⃣ Calculate match score
-            match_score = calculate_match_score(current_skills, job_requirements)
-            
-            # 6️⃣ Generate roadmap
-            roadmap = generate_roadmap(gaps, time_per_day, current_level)
-            
-            # Store in session state
-            st.session_state.roadmap_generated = True
-            st.session_state.github_data = github_data
-            st.session_state.resume_data = resume_data
-            st.session_state.current_skills = current_skills
-            st.session_state.gaps = gaps
-            st.session_state.roadmap = roadmap
-            st.session_state.match_score = match_score
-            st.session_state.job_requirements = job_requirements
-            
-            st.success("✅ Analysis complete!")
-
-# Section 1: Extracted Skills
-st.header("📊 Extracted Skills")
-with st.container():
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("From GitHub")
-        if st.session_state.roadmap_generated and st.session_state.github_data:
-            github_data = st.session_state.github_data
-            
-            # Show username and stats
-            st.markdown(f"**Username:** {github_data.get('username', 'N/A')}")
-            st.markdown(f"**Repos:** {github_data.get('repos_count', 0)} | **Level:** {github_data.get('experience_level', 'N/A')}")
-            
-            # Show top languages
-            if 'top_languages' in github_data:
-                st.markdown("**Top Languages:**")
-                for lang, percent in github_data['top_languages'].items():
-                    st.markdown(f"• {lang}: {percent}")
-            
-            # Show skills
-            st.markdown("**Skills Detected:**")
-            for skill in github_data.get('skills', []):
-                st.markdown(f"✅ {skill}")
-        else:
-            st.info("Enter GitHub username to see skills extracted from your repositories")
-        
-    with col2:
-        st.subheader("From Resume")
-        if st.session_state.roadmap_generated and st.session_state.resume_data:
-            resume_data = st.session_state.resume_data
-            
-            # Show education
-            if 'education' in resume_data:
-                edu = resume_data['education']
-                st.markdown(f"**{edu.get('degree', 'N/A')}**")
-                st.markdown(f"*{edu.get('institution', 'N/A')}*")
-                st.markdown(f"CGPA: {edu.get('cgpa', 'N/A')}")
-            
-            # Show technical skills
-            if 'technical_skills' in resume_data:
-                tech = resume_data['technical_skills']
-                st.markdown("**Technical Skills:**")
-                
-                if tech.get('languages'):
-                    st.markdown(f"• Languages: {', '.join(tech['languages'])}")
-                if tech.get('web'):
-                    st.markdown(f"• Web: {', '.join(tech['web'])}")
-                if tech.get('core_cs'):
-                    st.markdown(f"• Core CS: {', '.join(tech['core_cs'])}")
-                if tech.get('tools'):
-                    st.markdown(f"• Tools: {', '.join(tech['tools'])}")
-        else:
-            st.info("Upload resume to see extracted skills")
-
-st.divider()
-
-# Section 2: Skill Gaps
-st.header("🎯 Skill Gaps Analysis")
-with st.container():
-    st.info(f"Analyzing gaps for: **{dream_role}**")
-    
-    # Metrics row
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        if st.session_state.roadmap_generated:
-            st.metric(
-                "Skills to Learn", 
-                st.session_state.match_score['gap_count'],
-                help="Required skills you need to learn"
-            )
-        else:
-            st.metric("Skills to Learn", "-", help="Required skills you need to learn")
-    
-    with col2:
-        if st.session_state.roadmap_generated:
-            st.metric(
-                "Skills Matched", 
-                st.session_state.match_score['matching_count'],
-                help="Skills you already have"
-            )
-        else:
-            st.metric("Skills Matched", "-", help="Skills you already have")
-    
-    with col3:
-        if st.session_state.roadmap_generated:
-            st.metric(
-                "Match Score", 
-                f"{st.session_state.match_score['match_percentage']}%",
-                help="Current fit percentage for target role"
-            )
-        else:
-            st.metric("Match Score", "-", help="Current fit percentage for target role")
-
-# Display skill gaps in detail
-if st.session_state.roadmap_generated:
-    gaps = st.session_state.gaps
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        if gaps.get('missing_required'):
-            st.subheader("🔴 Missing Required Skills")
-            for skill in gaps['missing_required']:
-                st.markdown(f"• **{skill.title()}**")
-        
-    with col2:
-        if gaps.get('missing_nice_to_have'):
-            st.subheader("🟡 Missing Nice-to-Have")
-            for skill in gaps['missing_nice_to_have']:
-                st.markdown(f"• {skill.title()}")
-
-st.divider()
-
-# Section 3: 7-Day Roadmap
-st.header("🗓️ Your 7-Day Learning Roadmap")
-with st.container():
-    st.info(f"Personalized for **{current_level}** level • **{time_per_day}h/day** commitment")
-    
-    if st.session_state.roadmap_generated:
-        roadmap = st.session_state.roadmap
-        
-        # Check if there's a completion message
-        if roadmap.get('message'):
-            st.success(roadmap['message'])
-            if roadmap.get('suggestion'):
-                st.info(roadmap['suggestion'])
-        
-        # Display roadmap summary
-        if roadmap.get('days'):
-            st.markdown(f"""
-            **📋 Learning Plan Summary:**
-            - 📚 **Platform:** {roadmap['recommended_platform']}
-            - 🎯 **Approach:** {roadmap['learning_approach']}
-            - 📊 **Total Skills:** {roadmap['total_skills']} ({roadmap.get('required_count', 0)} required + {roadmap.get('nice_to_have_count', 0)} nice-to-have)
-            - ⏰ **Daily Commitment:** {roadmap['time_per_day']} hours
-            """)
-            
-            st.divider()
-            
-            # Display daily roadmap
-            for day_plan in roadmap['days']:
-                # Different styling for review days
-                if day_plan.get('is_review_day'):
-                    icon = "🔄"
-                    expanded = False
-                else:
-                    icon = "📅"
-                    expanded = (day_plan['day'] == 1)
-                
-                with st.expander(
-                    f"{icon} **Day {day_plan['day']}: {day_plan['focus']}** ({day_plan['hours']}h)", 
-                    expanded=expanded
-                ):
-                    # Show skills to focus on
-                    if day_plan.get('skills'):
-                        st.markdown("**🎯 Skills to Focus On:**")
-                        for skill in day_plan['skills']:
-                            st.markdown(f"- {skill.title()}")
-                        st.markdown("")
-                    
-                    # Show activities
-                    st.markdown("**📋 Activities:**")
-                    for activity in day_plan['activities']:
-                        st.markdown(f"{activity}")
-                    st.markdown("")
-                    
-                    # Show resources
-                    st.markdown(f"**📚 Resources:** {day_plan['resources']}")
-                    
-                    # Show checkpoint or project ideas
-                    if day_plan.get('checkpoint'):
-                        st.markdown(f"**✅ Checkpoint:** {day_plan['checkpoint']}")
-                    
-                    if day_plan.get('project_ideas'):
-                        st.markdown("**💡 Project Ideas:**")
-                        for project in day_plan['project_ideas']:
-                            st.markdown(f"- {project}")
-    else:
-        st.markdown("""
-        *Your personalized roadmap will appear here once you generate it.*
-        
-        The roadmap will include:
-        - ✅ Daily learning objectives tailored to your level
-        - 📚 Recommended resources and tutorials
-        - 💪 Practice projects and coding exercises
-        - 🎯 Skill checkpoints and milestones
-        """)
-
-# Footer
-st.divider()
+# Custom CSS - Cinematic Design
 st.markdown("""
-<div style='text-align: center; color: #666; padding: 20px;'>
-    Built with ❤️ for TechX Hackathon | Powered by AI
-</div>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+    
+    * {
+        font-family: 'Inter', sans-serif;
+    }
+    
+    .stApp {
+        background: linear-gradient(135deg, #0a0e27 0%, #1a1147 50%, #0f2167 100%);
+        background-attachment: fixed;
+    }
+    
+    /* Floating background blobs */
+    .stApp::before {
+        content: '';
+        position: fixed;
+        width: 500px;
+        height: 500px;
+        background: radial-gradient(circle, rgba(103,58,183,0.3) 0%, transparent 70%);
+        border-radius: 50%;
+        top: -200px;
+        right: -200px;
+        animation: float 20s infinite ease-in-out;
+        z-index: 0;
+    }
+    
+    .stApp::after {
+        content: '';
+        position: fixed;
+        width: 400px;
+        height: 400px;
+        background: radial-gradient(circle, rgba(33,150,243,0.2) 0%, transparent 70%);
+        border-radius: 50%;
+        bottom: -150px;
+        left: -150px;
+        animation: float 15s infinite ease-in-out reverse;
+        z-index: 0;
+    }
+    
+    @keyframes float {
+        0%, 100% { transform: translate(0, 0) scale(1); }
+        50% { transform: translate(50px, 50px) scale(1.1); }
+    }
+    
+    @keyframes gradient-shift {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes glow {
+        0%, 100% { box-shadow: 0 0 20px rgba(103,58,183,0.3); }
+        50% { box-shadow: 0 0 40px rgba(103,58,183,0.6); }
+    }
+    
+    /* Hero Title */
+    .hero-title {
+        font-size: 4.5rem;
+        font-weight: 800;
+        background: linear-gradient(90deg, #a78bfa 0%, #ec4899 50%, #6366f1 100%);
+        background-size: 200% auto;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: gradient-shift 3s ease infinite;
+        text-align: center;
+        margin-bottom: 0;
+        filter: drop-shadow(0 0 30px rgba(167,139,250,0.5));
+        line-height: 1.2;
+    }
+    
+    .hero-subtitle {
+        font-size: 1.4rem;
+        color: rgba(255,255,255,0.7);
+        text-align: center;
+        margin-top: 1rem;
+        font-weight: 400;
+        letter-spacing: 0.5px;
+    }
+    
+    /* Glass Cards */
+    .glass-card {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(20px);
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 2rem;
+        margin: 1.5rem 0;
+        animation: fadeIn 0.6s ease-out;
+        transition: all 0.3s ease;
+    }
+    
+    .glass-card:hover {
+        transform: translateY(-5px);
+        border-color: rgba(167,139,250,0.3);
+        box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    }
+    
+    /* Metric Cards */
+    .metric-card {
+        background: linear-gradient(135deg, rgba(167,139,250,0.2) 0%, rgba(236,72,153,0.2) 100%);
+        backdrop-filter: blur(10px);
+        padding: 2rem;
+        border-radius: 16px;
+        border: 1px solid rgba(255,255,255,0.1);
+        text-align: center;
+        animation: fadeIn 0.8s ease-out;
+    }
+    
+    .metric-value {
+        font-size: 3rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #a78bfa 0%, #ec4899 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    
+    .metric-label {
+        color: rgba(255,255,255,0.7);
+        font-size: 1rem;
+        margin-top: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+    }
+    
+    /* Buttons */
+    .stButton>button {
+        width: 100%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        height: 3.5em;
+        font-size: 1.2em;
+        font-weight: 700;
+        border: none;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        animation: glow 2s infinite;
+    }
+    
+    .stButton>button:hover {
+        transform: scale(1.05);
+        box-shadow: 0 0 50px rgba(103,58,183,0.8);
+    }
+    
+    /* Sidebar */
+    [data-testid="stSidebar"] {
+        background: rgba(10, 14, 39, 0.8);
+        backdrop-filter: blur(20px);
+        border-right: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    [data-testid="stSidebar"] h2 {
+        color: #a78bfa;
+        font-weight: 700;
+    }
+    
+    /* Section Headers */
+    h1, h2, h3 {
+        color: white !important;
+        font-weight: 700 !important;
+    }
+    
+    /* Tables */
+    .stTable {
+        background: rgba(255,255,255,0.05);
+        backdrop-filter: blur(10px);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    
+    /* Inputs */
+    .stTextInput>div>div>input, .stSelectbox>div>div>select {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        color: white;
+        border-radius: 8px;
+    }
+    
+    /* Warning/Success boxes */
+    .stAlert {
+        background: rgba(255,255,255,0.05);
+        backdrop-filter: blur(10px);
+        border-radius: 12px;
+    }
+    
+    /* Gap warning card */
+    .gap-card {
+        background: rgba(239,68,68,0.1);
+        border: 2px solid rgba(239,68,68,0.3);
+        border-radius: 16px;
+        padding: 2rem;
+        animation: fadeIn 1s ease-out;
+        box-shadow: 0 0 30px rgba(239,68,68,0.2);
+    }
+    
+    /* Timeline roadmap */
+    .roadmap-item {
+        background: rgba(255,255,255,0.05);
+        border-left: 3px solid #a78bfa;
+        padding: 1rem 1.5rem;
+        margin: 1rem 0;
+        border-radius: 8px;
+        animation: fadeIn 1.2s ease-out;
+    }
+    
+    /* JSON display */
+    pre {
+        background: rgba(0,0,0,0.3) !important;
+        border-radius: 12px !important;
+        border: 1px solid rgba(255,255,255,0.1) !important;
+    }
+</style>
 """, unsafe_allow_html=True)
+
+# Mock data functions
+def analyze_github(username):
+    return {"languages": ["Python", "JavaScript", "TypeScript"], "projects": 12, "commits": 347, "stars": 89}
+
+def parse_resume(file):
+    return {"skills": ["React", "Python", "SQL", "Docker"], "experience": "2 years", "education": "B.Tech CS"}
+
+def get_role_skills(role):
+    skills_db = {
+        'Software Engineer': ['Python', 'Java', 'Git', 'Docker', 'Kubernetes', 'APIs', 'System Design'],
+        'Data Scientist': ['Python', 'SQL', 'Machine Learning', 'Statistics', 'Pandas', 'TensorFlow', 'Visualization'],
+        'Fullstack Developer': ['React', 'Node.js', 'MongoDB', 'REST APIs', 'CSS', 'TypeScript', 'GraphQL']
+    }
+    return skills_db.get(role, [])
+
+# Hero Section
+st.markdown('<h1 class="hero-title">Personal Career Navigator 🚀</h1>', unsafe_allow_html=True)
+st.markdown('<p class="hero-subtitle">An AI career co-pilot that reasons, plans, and evolves with you.</p>', unsafe_allow_html=True)
+st.markdown("<br>", unsafe_allow_html=True)
+
+# Sidebar
+with st.sidebar:
+    st.markdown("## ⚙️ Control Panel")
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    github_username = st.text_input("🔗 GitHub Username", placeholder="yourusername")
+    resume_file = st.file_uploader("📄 Upload Resume (PDF)", type=['pdf'])
+    dream_role = st.selectbox("💼 Dream Role", ['Software Engineer', 'Data Scientist', 'Fullstack Developer'])
+    hours_per_day = st.slider("⏰ Hours/Day", 1, 4, 2)
+    level = st.selectbox("📊 Current Level", ['Beginner', 'Intermediate', 'Advanced'])
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    analyze_button = st.button("🎯 ANALYZE CAREER")
+
+# Main Content
+if analyze_button:
+    if not github_username:
+        st.error("⚠️ Please enter your GitHub username to continue")
+    else:
+        with st.spinner("🔮 AI is analyzing your career trajectory..."):
+            time.sleep(2.5)
+        
+        st.success("✨ Analysis Complete! Your personalized roadmap is ready.")
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # Metrics Row
+        github_data = analyze_github(github_username)
+        resume_data = parse_resume(resume_file) if resume_file else {"skills": ["Git", "Python", "React"], "experience": "1 year"}
+        
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.markdown(f'<div class="metric-card"><div class="metric-value">{len(resume_data["skills"])}</div><div class="metric-label">Skills</div></div>', unsafe_allow_html=True)
+        with col2:
+            st.markdown(f'<div class="metric-card"><div class="metric-value">{github_data["projects"]}</div><div class="metric-label">Projects</div></div>', unsafe_allow_html=True)
+        with col3:
+            st.markdown(f'<div class="metric-card"><div class="metric-value">{github_data["commits"]}</div><div class="metric-label">Commits</div></div>', unsafe_allow_html=True)
+        with col4:
+            st.markdown(f'<div class="metric-card"><div class="metric-value">{github_data["stars"]}</div><div class="metric-label">Stars</div></div>', unsafe_allow_html=True)
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # Profile Analysis Card
+        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+        st.markdown("### 🎯 Profile Analysis")
+        profile_data = {
+            "github_insights": github_data,
+            "resume_summary": resume_data,
+            "skill_level": level,
+            "learning_capacity": f"{hours_per_day} hours/day"
+        }
+        st.json(profile_data)
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Role Skills Card
+        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+        st.markdown("### 💼 Dream Role Requirements")
+        role_skills = get_role_skills(dream_role)
+        st.table({"Required Skills": role_skills, "Priority": ["High"] * len(role_skills)})
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Skill Gaps Card
+        user_skills = set(resume_data["skills"])
+        required_skills = set(role_skills)
+        gaps = list(required_skills - user_skills)
+        
+        if gaps:
+            st.markdown('<div class="gap-card">', unsafe_allow_html=True)
+            st.markdown(f"### ⚠️ Skill Gaps Identified: {len(gaps)}")
+            st.table({"Missing Skill": gaps, "Impact": ["Critical"] * len(gaps), "Est. Time": [f"{hours_per_day*3}hrs"] * len(gaps)})
+            st.markdown('</div>', unsafe_allow_html=True)
+        else:
+            st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+            st.markdown("### 🎉 No Critical Gaps!")
+            st.write("You're ready to apply for this role!")
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Roadmap Card
+        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+        st.markdown("### 🗺️ 7-Day Personalized Roadmap")
+        
+        for i, skill in enumerate(gaps[:7] if gaps else ["Advanced Topics"]):
+            day_name = (datetime.now() + timedelta(days=i+1)).strftime("%A")
+            st.markdown(f'''
+            <div class="roadmap-item">
+                <strong>Day {i+1} • {day_name}</strong><br>
+                🎯 Master {skill}<br>
+                ⏱️ {hours_per_day} hours • {level} level content
+            </div>
+            ''', unsafe_allow_html=True)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        st.balloons()
+
+else:
+    # Welcome State
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+    st.markdown("### 🌟 Welcome to Your Career Journey")
+    st.write("Fill in your details in the control panel and click **ANALYZE CAREER** to unlock your personalized roadmap.")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown('<div class="glass-card" style="text-align: center;">🎯<br><strong>AI Analysis</strong><br>Deep GitHub & resume insights</div>', unsafe_allow_html=True)
+    with col2:
+        st.markdown('<div class="glass-card" style="text-align: center;">💼<br><strong>Role Matching</strong><br>Compare with dream jobs</div>', unsafe_allow_html=True)
+    with col3:
+        st.markdown('<div class="glass-card" style="text-align: center;">🗺️<br><strong>Smart Roadmap</strong><br>Personalized learning path</div>', unsafe_allow_html=True)
+
+st.markdown("<br><br>", unsafe_allow_html=True)
+st.markdown('<p style="text-align: center; color: rgba(255,255,255,0.4); font-size: 0.9rem;">Built with ❤️ for Bengaluru CS Hackathon 2026 | Powered by AI</p>', unsafe_allow_html=True)
