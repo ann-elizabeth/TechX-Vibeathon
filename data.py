@@ -1,14 +1,7 @@
 # 🚀 PERSON B: Career Navigator - Enhanced Data Layer
 # Profile: B.Tech CSE (AI & ML), Bengaluru
 
-def load_job_requirements():
-    return [
-        {"role": "Backend Developer",
-         "required_skills": ["Java", "Spring Boot", "SQL", "Git", "Data Structures"]},
-        {"role": "AI Engineer",
-         "required_skills": ["Python", "TensorFlow", "Statistics", "Machine Learning"]}
-    ]
-
+import pandas as pd
 
 # -------------------------------
 # 📦 GitHub Profile Extractor
@@ -101,9 +94,40 @@ def extract_resume_skills(resume_text_or_path):
 # 📊 Job Requirements Loader
 # -------------------------------
 
-def load_job_requirements():
-    """Load mock job requirements from CSV"""
-    return pd.read_csv("jobs.csv")
+def load_job_requirements(role=None):
+    """Load job requirements - returns dict or filters by role"""
+    
+    job_data = {
+        "Software Engineer": {
+            "required_skills": ["Java", "Python", "React", "Docker", "SQL", "Git", "REST APIs", "Data Structures", "Algorithms", "Communication"],
+            "nice_to_have": ["Spring Boot", "Microservices", "AWS", "CI/CD"],
+            "experience": "0-2 years"
+        },
+        "Data Scientist": {
+            "required_skills": ["Python", "Pandas", "NumPy", "Machine Learning", "SQL", "Statistics", "Data Visualization", "Jupyter", "TensorFlow", "Communication"],
+            "nice_to_have": ["Deep Learning", "NLP", "Big Data", "Spark"],
+            "experience": "0-2 years"
+        },
+        "Fullstack Developer": {
+            "required_skills": ["React", "Node.js", "JavaScript", "MongoDB", "Express.js", "Git", "REST APIs", "HTML", "CSS", "Docker"],
+            "nice_to_have": ["TypeScript", "GraphQL", "AWS", "Next.js"],
+            "experience": "0-2 years"
+        },
+        "Backend Developer": {
+            "required_skills": ["Java", "Spring Boot", "SQL", "Git", "Data Structures", "REST APIs", "Microservices"],
+            "nice_to_have": ["Docker", "Kubernetes", "Redis", "PostgreSQL"],
+            "experience": "0-2 years"
+        },
+        "AI Engineer": {
+            "required_skills": ["Python", "TensorFlow", "Statistics", "Machine Learning", "Deep Learning", "PyTorch", "NumPy"],
+            "nice_to_have": ["MLOps", "Computer Vision", "NLP", "Model Deployment"],
+            "experience": "0-2 years"
+        }
+    }
+    
+    if role:
+        return job_data.get(role, job_data["Software Engineer"])
+    return job_data
 
 
 # -------------------------------
@@ -121,6 +145,12 @@ if __name__ == "__main__":
     resume_data = extract_resume_skills("resume.pdf")
     print("\n📄 Resume Data:")
     print(resume_data)
+    
+    print("\n📋 Job Requirements:")
+    jobs = load_job_requirements()
+    for role, details in jobs.items():
+        print(f"\n{role}:")
+        print(f"  Required: {details['required_skills'][:3]}...")
     
     print("\n🎉 DATA MODULE READY FOR AGENTS!")
     print("=" * 60)
